@@ -5,7 +5,7 @@
 # Package related
 BINARY_NAME=sriov
 PACKAGE=sriov-cni
-ORG_PATH=github.com/intel
+ORG_PATH=github.com/k8snetworkplumbingwg
 REPO_PATH=$(ORG_PATH)/$(PACKAGE)
 GOPATH=$(CURDIR)/.gopath
 GOBIN=$(CURDIR)/bin
@@ -17,7 +17,7 @@ TESTPKGS = $(shell env GOPATH=$(GOPATH) $(GO) list -f '{{ if or .TestGoFiles .XT
 
 export GOPATH
 export GOBIN
-
+export GO111MODULE=on
 # Docker
 IMAGEDIR=$(BASE)/images
 DOCKERFILE=$(CURDIR)/Dockerfile
@@ -35,7 +35,6 @@ endif
 GO      = go
 GODOC   = godoc
 GOFMT   = gofmt
-GLIDE   = glide
 TIMEOUT = 15
 V = 0
 Q = $(if $(filter 1,$V),,@)
@@ -133,16 +132,6 @@ fmt: ; $(info  running gofmt...) @ ## Run gofmt on all source files
 		$(GOFMT) -l -w $$d/*.go || ret=$$? ; \
 	 done ; exit $$ret
 
-# Dependency management
-
-glide.lock: glide.yaml | $(BASE) ; $(info  updating dependencies...)
-	$Q cd $(BASE) && $(GLIDE) update -v
-	@touch $@
-vendor: glide.lock | $(BASE) ; $(info  retrieving dependencies...)
-	$Q cd $(BASE) && $(GLIDE) --quiet install -v
-	@ln -nsf . vendor/src
-	@touch $@
-
 # Docker image
 # To pass proxy for Docker invoke it as 'make image HTTP_POXY=http://192.168.0.1:8080'
 .PHONY: image
@@ -152,7 +141,8 @@ image: | $(BASE) ; $(info Building Docker image...)
 # Misc
 
 .PHONY: clean
-clean: ; $(info  Cleaning...)	@ ## Cleanup everything
+clean: | $(BASE) ; $(info  Cleaning...)	@ ## Cleanup everything
+	@cd $(BASE) && $(GO) clean --modcache
 	@rm -rf $(GOPATH)
 	@rm -rf $(BUILDDIR)/$(BINARY_NAME)
 	@rm -rf test/tests.* test/coverage.*
